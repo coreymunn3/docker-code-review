@@ -62,4 +62,36 @@ Now, when we update the /test endpoint again, we will see that automatically upd
 
 ## Networks
 
-why do we need networks?
+Why do we need networks? To allow smooth inter-container communnication. Ideally, your containers should be able to speak to each other without having that communication travel through a third party, like the localhost.
+
+We can easily create a network for our containers with docker.
+`docker network create todos-net`
+
+Now when we run containers, we can simple add the `--network` flag and specify which network the containers belong in. This is useful because it allos us to reference the containers inside the network by name, and as a result, docker will automatically internally resolve the IP of the container for you. It makes constructing database URI's, for example, very easy.
+
+10. Stop and remove all containers. Re-run the database container using this update command that adds the db container to the new todos-net network. We also remove the exposed port of 5432 because we don't need to access it through the localhost anymore!
+    `docker run -d --name todos-db --env-file ./.env -v todos_pgdata:/var/lib/postgresql/data --network todos-net postgres:16-alpine`
+
+Now we need to restart our API container, and add it to the network we created. But there's one thing we should do before we do that. Back in the db config file (db.js) we need to update the host again. Typically, if this Database were deployed somewhere on the internet, we would use the IP address here. But since it's all going to be part of the same network, docker will resolve that IP address for us and instead we can use the name of the db container.
+
+```
+{
+    host: "host.docker.internal",
+    port: 5432,
+    dialect: "postgres",
+}
+```
+
+Update to
+
+```
+{
+    host: "todos-db",
+    port: 5432,
+    dialect: "postgres",
+}
+```
+
+11. Now we can restart the API container inside the todos-net network. Notice that we don't have to rebuild the image because we are using a bind-mount and that db file updated automatically. Also note, we continue to expose port 5000 for this container, because since this is the API we still need a way to reach it via postman.
+    `docker run -d --rm --name todos-api -p 5000:5000 -v /Users/michaelmunn/Training/docker-code-review/two-container-api:/app --network todos-net todos-api`
+    Now, we can still hit endpoints and get data via postman even though the db ports are not exposed, because the containers are communicating with each other behind the scenes.
