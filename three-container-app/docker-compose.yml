@@ -1,6 +1,35 @@
 version: '3.8'
 # describe containers here
 services:
+  todos-db:
+    image: postgres:16-alpine
+    volumes:
+      - todos_pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./backend/.env
+
+  todos-api:
+    build: ./backend
+    ports:
+      - '5000:5000'
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - todos-db
+
+  frontend:
+    build: ./frontend
+    ports: 
+      - '4000:4000'
+    volumes:
+      - ./frontend/src:/app/src
+    stdin_open: true
+    tty: true
+    depends_on:
+      - todos-api
+      
 
 # summarize any named volumes here
 volumes:
+  todos_pgdata:
